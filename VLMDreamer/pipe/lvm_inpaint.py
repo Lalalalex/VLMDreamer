@@ -170,7 +170,7 @@ class Inpaint_Tool():
             prompt_2 = frame.prompt_2
             print(f'Using pre-generated prompt: {prompt}')
         # --------------------- Fooocus ----------------------
-        temp_path = '/home/twhuang/experiment/new_vistadream/VistaDream/data/temp_result/new_test_4.png'
+        temp_path = ''
         print('Inpaint-Fooocus[1/2] Fooocus inpainting...')
         logger.info(prompt)
         image = frame.rgb
@@ -259,7 +259,7 @@ class Inpaint_Tool():
             #     fooocus_result = self.histogram_matching(mask, fooocus_result, frame.initial_rgb)
 
         # self.save_image(fooocus_result, temp_path)
-        # self.save_image(fooocus_result, '/home/twhuang/experiment/new_vistadream/VistaDream/data/coase_image/' +  + str(self.index) + '.jpg')
+        # self.save_image(fooocus_result, '' +  + str(self.index) + '.jpg')
 
 
         # if refine_image:
@@ -290,7 +290,7 @@ class Inpaint_Tool():
 
         torch.cuda.empty_cache()
 
-        self.save_image(fooocus_result, '/home/twhuang/experiment/new_vistadream/VistaDream/data/temp_result/' + str(self.index) + '.jpg')
+        self.save_image(fooocus_result, '' + str(self.index) + '.jpg')
         self.index = self.index + 1
         
         # reset the frame for outpainting
