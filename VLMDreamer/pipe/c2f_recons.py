@@ -162,12 +162,10 @@ class Pipeline():
         frame = self._pose_to_frame(pose, margin)
         # if index % 2 == 0:
         frame.prompt = self.scene_describtion[index]
-        # # frame.prompt = 'In the Elegant Living Room, sunlight bathes two cozy sofas and a rustic coffee table, creating a serene and inviting atmosphere'
         if self.dual_inpaint:
             frame.prompt_2 = self.scene_describtion_2[index]
         else:
             frame.prompt_2 = frame.prompt
-        # # frame.prompt_2 = 'In the Elegant Living Room, sunlight bathes two cozy sofas and a rustic coffee table, creating a serene and inviting atmosphere'
         # elif index % 2 == 1:
         #     frame.prompt = self.scene_describtion_2[index]
         # else:
@@ -324,7 +322,7 @@ class Pipeline():
         self.scene_describtion_2 = []
         self.cameras = self.rot_initial(20, inverse = True)
         self.cameras = self.trans_by_look_at(self.cameras)
-        output_dir = '/ssddisk/twhuang/result/lucid_copy/living_4/ex'
+        output_dir = ''
 
         with torch.no_grad():
             image_paths = os.listdir(output_dir)
@@ -357,12 +355,10 @@ class Pipeline():
         # refinement
         
         if refine:
-            self.checkor._render_video(self.scene,save_dir=f'{dir}/', postfix = str(train_index) + '_wo_mcs_refine')
             self._MCS_Refinement()
             torch.save(self.scene,f'{dir}/scene.pth')
-            self.checkor._render_video(self.scene,save_dir=f'{dir}/', postfix = str(train_index) + '_refine')
+            self.checkor._render_video(self.scene,save_dir=f'{dir}/', postfix = str(train_index))
         else:
-            self.checkor._render_video(self.scene,save_dir=f'{dir}/', postfix = str(train_index) + '_wo_mcs')
             self._MCS_Refinement()
             # torch.save(self.scene,f'{dir}/scene' + str(train_index) + '.pth')
             self.checkor._render_video(self.scene,save_dir=f'{dir}/', postfix = str(train_index))
