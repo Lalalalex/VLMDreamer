@@ -592,8 +592,33 @@ def sample_dpmpp_2m(model, x, sigmas, extra_args=None, callback=None, disable=No
         old_denoised = denoised
     return x
 
+def get_left_right_mask(latents: torch.Tensor):
+    B, C, H, W = latents.shape
+    device = latents.device
+
+    valid_mask = (latents.abs().sum(dim=1, keepdim=False) > 1e-6).float()
+
+    left_mask = torch.zeros((H, W), device=device)
+    right_mask = torch.zeros((H, W), device=device)
+
+    for h in range(H):
+        row = valid_mask[0, h]
+        indices = torch.where(row > 0)[0]
+        if len(indices) > 1:
+            start, end = indices[0], indices[-1]
+            length = end - start
+            if length > 0:
+                interp = torch.linspace(0, 1, steps=length + 1, device=device)
+                left_mask[h, start:end + 1] = 1 - interp
+                right_mask[h, start:end + 1] = interp
+
+    left_mask = left_mask.unsqueeze(0).unsqueeze(0).repeat(1, C, 1, 1).to(latents.dtype)
+    right_mask = right_mask.unsqueeze(0).unsqueeze(0).repeat(1, C, 1, 1).to(latents.dtype)
+
+    return left_mask, right_mask
+
 @torch.no_grad()
-def sample_dpmpp_2m_sde(model, x, sigmas, extra_args=None, callback=None, disable=None, eta=1., s_noise=1., noise_sampler=None, solver_type='midpoint'):
+def sample_dpmpp_2m_sde(model, x, sigmas, extra_args=None,extra_args_2=None, callback=None, disable=None, eta=1., s_noise=1., noise_sampler=None, solver_type='midpoint'):
     """DPM-Solver++(2M) SDE."""
 
     if solver_type not in {'heun', 'midpoint'}:
@@ -611,6 +636,13 @@ def sample_dpmpp_2m_sde(model, x, sigmas, extra_args=None, callback=None, disabl
 
     for i in trange(len(sigmas) - 1, disable=disable):
         denoised = model(x, sigmas[i] * s_in, **extra_args)
+        denoised_2 = model(x, sigmas[i] * s_in, **extra_args)
+        # denoised = denoised_2
+        
+        # if i > 15:
+        left_mask, right_mask = get_left_right_mask(denoised)
+        mix_denoised = left_mask * denoised + right_mask * denoised_2
+        # denoised = denoised.clamp(0, 255)
         if callback is not None:
             callback({'x': x, 'i': i, 'sigma': sigmas[i], 'sigma_hat': sigmas[i], 'denoised': denoised})
         if sigmas[i + 1] == 0:
@@ -695,10 +727,10 @@ def sample_dpmpp_3m_sde_gpu(model, x, sigmas, extra_args=None, callback=None, di
     return sample_dpmpp_3m_sde(model, x, sigmas, extra_args=extra_args, callback=callback, disable=disable, eta=eta, s_noise=s_noise, noise_sampler=noise_sampler)
 
 @torch.no_grad()
-def sample_dpmpp_2m_sde_gpu(model, x, sigmas, extra_args=None, callback=None, disable=None, eta=1., s_noise=1., noise_sampler=None, solver_type='midpoint'):
+def sample_dpmpp_2m_sde_gpu(model, x, sigmas, extra_args=None, extra_args_2=None,callback=None, disable=None, eta=1., s_noise=1., noise_sampler=None, solver_type='midpoint'):
     sigma_min, sigma_max = sigmas[sigmas > 0].min(), sigmas.max()
     noise_sampler = BrownianTreeNoiseSampler(x, sigma_min, sigma_max, seed=extra_args.get("seed", None), cpu=False) if noise_sampler is None else noise_sampler
-    return sample_dpmpp_2m_sde(model, x, sigmas, extra_args=extra_args, callback=callback, disable=disable, eta=eta, s_noise=s_noise, noise_sampler=noise_sampler, solver_type=solver_type)
+    return sample_dpmpp_2m_sde(model, x, sigmas, extra_args=extra_args, extra_args_2=extra_args_2, callback=callback, disable=disable, eta=eta, s_noise=s_noise, noise_sampler=noise_sampler, solver_type=solver_type)
 
 @torch.no_grad()
 def sample_dpmpp_sde_gpu(model, x, sigmas, extra_args=None, callback=None, disable=None, eta=1., s_noise=1., noise_sampler=None, r=1 / 2):

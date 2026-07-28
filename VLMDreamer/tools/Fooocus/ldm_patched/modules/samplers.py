@@ -531,8 +531,9 @@ class KSAMPLER(Sampler):
         self.extra_options = extra_options
         self.inpaint_options = inpaint_options
 
-    def sample(self, model_wrap, sigmas, extra_args, callback, noise, latent_image=None, denoise_mask=None, disable_pbar=False):
+    def sample(self, model_wrap, sigmas, extra_args, extra_args_2, callback, noise, latent_image=None, denoise_mask=None, disable_pbar=False):
         extra_args["denoise_mask"] = denoise_mask
+        extra_args_2["denoise_mask"] = denoise_mask
         model_k = KSamplerX0Inpaint(model_wrap)
         model_k.latent_image = latent_image
         if self.inpaint_options.get("random", False): #TODO: Should this be the default?
@@ -554,7 +555,7 @@ class KSAMPLER(Sampler):
         if latent_image is not None:
             noise += latent_image
 
-        samples = self.sampler_function(model_k, noise, sigmas, extra_args=extra_args, callback=k_callback, disable=disable_pbar, **self.extra_options)
+        samples = self.sampler_function(model_k, noise, sigmas, extra_args=extra_args, extra_args_2=extra_args_2, callback=k_callback, disable=disable_pbar, **self.extra_options)
         return samples
 
 
@@ -583,7 +584,7 @@ def wrap_model(model):
     model_denoise = CFGNoisePredictor(model)
     return model_denoise
 
-def sample(model, noise, positive, negative, cfg, device, sampler, sigmas, model_options={}, latent_image=None, denoise_mask=None, callback=None, disable_pbar=False, seed=None):
+def sample(model, noise, positive, positive_2, negative, cfg, device, sampler, sigmas, model_options={}, latent_image=None, denoise_mask=None, callback=None, disable_pbar=False, seed=None):
     positive = positive[:]
     negative = negative[:]
 
@@ -614,8 +615,9 @@ def sample(model, noise, positive, negative, cfg, device, sampler, sigmas, model
     apply_empty_x_to_equal_area(positive, negative, 'gligen', lambda cond_cnets, x: cond_cnets[x])
 
     extra_args = {"cond":positive, "uncond":negative, "cond_scale": cfg, "model_options": model_options, "seed":seed}
+    extra_args_2 = {"cond":positive_2, "uncond":negative, "cond_scale": cfg, "model_options": model_options, "seed":seed}
 
-    samples = sampler.sample(model_wrap, sigmas, extra_args, callback, noise, latent_image, denoise_mask, disable_pbar)
+    samples = sampler.sample(model_wrap, sigmas, extra_args, extra_args_2, callback, noise, latent_image, denoise_mask, disable_pbar)
     return model.process_latent_out(samples.to(torch.float32))
 
 SCHEDULER_NAMES = ["normal", "karras", "exponential", "sgm_uniform", "simple", "ddim_uniform"]
@@ -689,7 +691,7 @@ class KSampler:
             sigmas = self.calculate_sigmas(new_steps).to(self.device)
             self.sigmas = sigmas[-(steps + 1):]
 
-    def sample(self, noise, positive, negative, cfg, latent_image=None, start_step=None, last_step=None, force_full_denoise=False, denoise_mask=None, sigmas=None, callback=None, disable_pbar=False, seed=None):
+    def sample(self, noise, positive, positive_2, negative, cfg, latent_image=None, start_step=None, last_step=None, force_full_denoise=False, denoise_mask=None, sigmas=None, callback=None, disable_pbar=False, seed=None):
         if sigmas is None:
             sigmas = self.sigmas
 
@@ -709,4 +711,4 @@ class KSampler:
 
         sampler = sampler_object(self.sampler)
 
-        return sample(self.model, noise, positive, negative, cfg, self.device, sampler, sigmas, self.model_options, latent_image=latent_image, denoise_mask=denoise_mask, callback=callback, disable_pbar=disable_pbar, seed=seed)
+        return sample(self.model, noise, positive, positive_2, negative, cfg, self.device, sampler, sigmas, self.model_options, latent_image=latent_image, denoise_mask=denoise_mask, callback=callback, disable_pbar=disable_pbar, seed=seed)
